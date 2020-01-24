@@ -7,6 +7,9 @@
     Date                 : April 2014
     Copyright            : (C) 2014 by Alexander Bruy
     Email                : alexander dot bruy at gmail dot com
+    ---------------------
+    Modified by          : Andrea Giudiceandrea
+    Date                 : 24/01/2020
 ***************************************************************************
 *                                                                         *
 *   This program is free software; you can redistribute it and/or modify  *
@@ -55,6 +58,7 @@ class RandomPointsLayer(QgisAlgorithm):
     INPUT = 'INPUT'
     POINTS_NUMBER = 'POINTS_NUMBER'
     MIN_DISTANCE = 'MIN_DISTANCE'
+    MAX_ATTEMPTS = 'MAX_ATTEMPTS'
     OUTPUT = 'OUTPUT'
 
     def icon(self):
@@ -83,6 +87,10 @@ class RandomPointsLayer(QgisAlgorithm):
         self.addParameter(QgsProcessingParameterDistance(self.MIN_DISTANCE,
                                                          self.tr('Minimum distance between points'),
                                                          0, self.INPUT, False, 0, 1000000000))
+        self.addParameter(QgsProcessingParameterNumber(self.MAX_ATTEMPTS,
+                                                       self.tr('Maximum number of attempts per point'),
+                                                       QgsProcessingParameterNumber.Integer,
+                                                       200, False, 1, 10000))
         self.addParameter(QgsProcessingParameterFeatureSink(self.OUTPUT,
                                                             self.tr('Random points'),
                                                             type=QgsProcessing.TypeVectorPoint))
@@ -100,6 +108,7 @@ class RandomPointsLayer(QgisAlgorithm):
 
         pointCount = self.parameterAsDouble(parameters, self.POINTS_NUMBER, context)
         minDistance = self.parameterAsDouble(parameters, self.MIN_DISTANCE, context)
+        maxAttempts = self.parameterAsDouble(parameters, self.MAX_ATTEMPTS, context)
 
         bbox = source.sourceExtent()
         sourceIndex = QgsSpatialIndex(source, feedback)
@@ -114,7 +123,7 @@ class RandomPointsLayer(QgisAlgorithm):
 
         nPoints = 0
         nIterations = 0
-        maxIterations = pointCount * 200
+        maxIterations = pointCount * maxAttempts
         total = 100.0 / pointCount if pointCount else 1
 
         index = QgsSpatialIndex()
@@ -154,7 +163,7 @@ class RandomPointsLayer(QgisAlgorithm):
             nIterations += 1
 
         if nPoints < pointCount:
-            feedback.pushInfo(self.tr('Could not generate requested number of random points. '
-                                      'Maximum number of attempts exceeded.'))
+            feedback.pushInfo(self.tr('Generated only {} random point(s) out of {} requested. '
+                                      'Maximum number of attempts exceeded.'.format(nPoints, int(pointCount))))
 
         return {self.OUTPUT: dest_id}
